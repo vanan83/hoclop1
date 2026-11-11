@@ -1,6 +1,6 @@
 /* Bé vui học lớp 1 — giao diện (chạy trên GitHub Pages, gọi máy chủ Apps Script qua API).
  * Tác giả: Phạm Văn An · 0848.355.888 */
-const APP_VERSION='2026.11.11-3'; // = ngày cập nhật; nhớ đổi CACHE trong sw.js cho trùng
+const APP_VERSION='2026.11.11-4'; // = ngày cập nhật; nhớ đổi CACHE trong sw.js cho trùng
 const $=id=>document.getElementById(id);
 let TOKEN='',ME=null,BANK={words:[],sentences:[]},STATS={stars:0,sessions:0,days:{},topics:{},recent:[]};
 let SUB='toan',QZ=null,PSUB='toan';
@@ -677,11 +677,14 @@ async function savePdf(){busy(true);try{await loadPdfLib()}catch(e){busy(false);
     .from($('paper')).save().then(()=>{busy(false);toast('Đã tải PDF')}).catch(e=>{busy(false);toast('Lỗi tạo PDF: '+e.message,true)})}
 
 /* ================= cài đặt ================= */
+function cloudBoxHtml(){return TTS_ON?`<label class="chk"><input type="checkbox" id="sCloud" ${SET.cloud!==false?'checked':''}> Dùng giọng Google (hay hơn, vẫn đọc khi iPhone để im lặng)</label>`:'<p class="muted" style="font-size:13px;margin:0 0 8px">🔇 Đang dùng giọng có sẵn của máy: iPhone để im lặng sẽ không nghe. Quản trị nhập khoá Google Cloud để đọc được cả khi im lặng.</p>'}
+/* Đổi trạng thái giọng Google và ghi luôn vào dữ liệu lưu trong máy (lần mở sau đúng ngay) */
+function setTtsOn(on){TTS_ON=on;TTS_MEM.clear();try{const b=JSON.parse(ls('hl1_boot')||'null');if(b){b.tts=on;ls('hl1_boot',JSON.stringify(b))}}catch(e){}}
 function openSettings(){const has=!!VOICE;loadVoice();
   const enOpts=EN_VOICES.slice(0,25).map(v=>`<option value="${esc(v.name)}"${VOICE_EN&&v.name===VOICE_EN.name?' selected':''}>${esc(v.name)} (${esc(v.lang)})</option>`).join('');
   openModal('⚙️ Cài đặt',`<div class="u-form"><label class="chk"><input type="checkbox" id="sAuto" ${SET.auto?'checked':''}> Tự đọc câu hỏi khi sang câu mới</label>
     <label class="chk"><input type="checkbox" id="sSound" ${SET.sound?'checked':''}> Âm thanh khi đúng / sai</label>
-    ${TTS_ON?`<label class="chk"><input type="checkbox" id="sCloud" ${SET.cloud!==false?'checked':''}> Dùng giọng Google (hay hơn, vẫn đọc khi iPhone để im lặng)</label>`:'<p class="muted" style="font-size:13px;margin:0 0 8px">🔇 Đang dùng giọng có sẵn của máy: iPhone để im lặng sẽ không nghe. Quản trị nhập khoá Google Cloud (bên dưới) để đọc được cả khi im lặng.</p>'}
+    <div id="cloudBox">${cloudBoxHtml()}</div>
     ${ME&&ME.role==='Quản trị'?`<div style="border:2px dashed var(--line);border-radius:14px;padding:10px 12px;margin:0 0 12px"><b>🎙️ Giọng Google Cloud (chỉ Quản trị)</b>
       <p class="muted" style="font-size:12.5px;margin:4px 0 8px" id="ttsInfo">Đang kiểm tra…</p>
       <div style="display:flex;gap:8px"><input id="ttsKey" class="input" placeholder="Dán khoá API (AIza…)" autocomplete="off"><button class="btn primary" type="button" onclick="saveTtsKey()">Lưu</button></div>
@@ -697,12 +700,17 @@ function openSettings(){const has=!!VOICE;loadVoice();
     <p id="spkStat" style="font-size:14px;margin:0 0 6px;color:#b45309"></p>
     <div class="form-actions" style="justify-content:flex-end;flex-wrap:wrap"><button class="btn" type="button" onclick="openChangePw()">🔑 Đổi mật khẩu</button> <button class="btn" type="button" onclick="logout()">Đăng xuất</button></div></div>`);
   $('sRate').value=String(SET.rate);$('sRateEn').value=String(SET.rateEn||0.8);
-  if($('ttsInfo'))gas('ttsStatus').then(r=>{$('ttsInfo').textContent=r.on?`Đang bật · khoá ${r.masked} · giọng ${r.voices.vi} / ${r.voices.en}`:'Chưa có khoá: đang dùng giọng của máy.'}).catch(e=>{$('ttsInfo').textContent=e.message});
+  /* Hỏi thẳng máy chủ (không dựa vào dữ liệu cũ lưu trong máy): Quản trị vừa dán khoá thì máy bé bật ngay */
+  gas('ttsStatus').then(r=>{
+    if(!!r.on!==TTS_ON){setTtsOn(!!r.on);if($('cloudBox')){$('cloudBox').innerHTML=cloudBoxHtml();if($('sCloud'))$('sCloud').onchange=save}}
+    const v=r.voices||{};if($('ttsInfo'))$('ttsInfo').textContent=r.on?`Đang bật · khoá ${r.masked||''} · giọng ${v.vi||''} / ${v.en||''}`:'Chưa có khoá: đang dùng giọng của máy.'})
+   .catch(e=>{if($('ttsInfo'))$('ttsInfo').textContent=e.message;
+    if($('cloudBox'))$('cloudBox').insertAdjacentHTML('beforeend',`<p style="font-size:12.5px;margin:0 0 8px;color:#b91c1c">⚠️ Chưa hỏi được máy chủ: ${esc(e.message)}</p>`)});
   const save=()=>{SET.auto=$('sAuto').checked;SET.sound=$('sSound').checked;if($('sCloud'))SET.cloud=$('sCloud').checked;SET.rate=Number($('sRate').value);SET.rateEn=Number($('sRateEn').value);
     if($('sEnVoice'))SET.enVoice=$('sEnVoice').value;ls('hl1_set',JSON.stringify(SET));loadVoice()};
   ['sAuto','sSound','sCloud','sRate','sRateEn','sEnVoice'].forEach(id=>{if($(id))$(id).onchange=save})}
 
-async function saveTtsKey(){const k=$('ttsKey').value.trim();try{busy(true);const r=await gas('ttsSetKey',k);TTS_ON=r.on;TTS_MEM.clear();
+async function saveTtsKey(){const k=$('ttsKey').value.trim();try{busy(true);const r=await gas('ttsSetKey',k);setTtsOn(!!r.on);
   $('ttsInfo').textContent=r.on?`Đang bật · khoá ${r.masked} · giọng ${r.voices.vi} / ${r.voices.en}`:'Đã tắt giọng Google.';$('ttsKey').value='';toast(r.on?'Đã bật giọng Google ✓':'Đã tắt giọng Google')}
   catch(e){toast(e.message,true);$('ttsInfo').textContent='⚠️ '+e.message}finally{busy(false)}}
 /* ================= đăng nhập & tài khoản ================= */
