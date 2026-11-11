@@ -1,6 +1,6 @@
 /* Bé vui học lớp 1 — giao diện (chạy trên GitHub Pages, gọi máy chủ Apps Script qua API).
  * Tác giả: Phạm Văn An · 0848.355.888 */
-const APP_VERSION='2026.11.11-8'; // = ngày cập nhật; nhớ đổi CACHE trong sw.js cho trùng
+const APP_VERSION='2026.11.11-9'; // = ngày cập nhật; nhớ đổi CACHE trong sw.js cho trùng
 const $=id=>document.getElementById(id);
 let TOKEN='',ME=null,BANK={words:[],sentences:[]},STATS={stars:0,sessions:0,days:{},topics:{},recent:[]};
 let SUB='toan',QZ=null,PSUB='toan';
@@ -827,7 +827,7 @@ async function showAccounts(){if(QZ&&!QZ.done&&!confirm('Dừng bài đang làm?
 function renderUsers(r){USERS={list:r.users||[],url:r.url||''};$('pubUrl').value=USERS.url;
   $('userList').innerHTML=USERS.list.map((u,i)=>`<div class="urow${u.active&&!u.expired?'':' off'}"><div class="nm"><b>${u.role==='Học sinh'?'🧒':'👤'} ${esc(u.name||u.username)}</b><small>${esc(u.username)} · ${esc(u.role)}${u.expired?` · <span class="exp-red">hết hạn từ ${isoToVN(u.expires)}</span>`:u.expires?' · dùng đến '+isoToVN(u.expires):''}${u.active?'':' · đã khóa'}${u.lastLogin?' · vào lần cuối '+esc(u.lastLogin):''}</small></div>
     <button class="btn sm" onclick="editUser(${i})">Sửa</button><button class="btn sm" onclick="showCreds(USERS.list[${i}].username,null,USERS.list[${i}].expires)">📋 Gửi thông tin</button>
-    ${ME&&u.username===ME.username?'':`<button class="btn sm" onclick="resetUserPw(${i})">Đặt lại MK</button><button class="btn sm" onclick="delUser(${i})">Xóa</button>`}</div>`).join('')||'<p class="muted">Chưa có tài khoản.</p>'}
+    ${ME&&u.username===ME.username?'<button class="btn sm primary" onclick="openChangePw()">🔑 Đổi mật khẩu</button>':`<button class="btn sm" onclick="resetUserPw(${i})">Đặt lại MK</button><button class="btn sm" onclick="delUser(${i})">Xóa</button>`}</div>`).join('')||'<p class="muted">Chưa có tài khoản.</p>'}
 function editUser(i){const u=i>=0?USERS.list[i]:{username:'',name:'',role:'Học sinh',active:true,expires:''};
   openModal(i>=0?'Sửa tài khoản':'Thêm tài khoản',`<form class="u-form" id="uForm">
     <label>Tên đăng nhập<input id="uName" class="input" value="${esc(u.username)}" ${i>=0?'disabled':''} placeholder="vd: 0848355888 hoặc be.na" autocapitalize="off"></label>
