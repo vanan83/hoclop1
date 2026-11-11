@@ -1,6 +1,6 @@
 /* Bé vui học lớp 1 — giao diện (chạy trên GitHub Pages, gọi máy chủ Apps Script qua API).
  * Tác giả: Phạm Văn An · 0848.355.888 */
-const APP_VERSION='2026.11.11-5'; // = ngày cập nhật; nhớ đổi CACHE trong sw.js cho trùng
+const APP_VERSION='2026.11.11-6'; // = ngày cập nhật; nhớ đổi CACHE trong sw.js cho trùng
 const $=id=>document.getElementById(id);
 let TOKEN='',ME=null,BANK={words:[],sentences:[]},STATS={stars:0,sessions:0,days:{},topics:{},recent:[]};
 let SUB='toan',QZ=null,PSUB='toan';
@@ -733,9 +733,10 @@ function openSettings(){const has=!!VOICE;loadVoice();
       <p class="muted" style="font-size:12px;margin:6px 0 0">Cách lấy khoá: xem mục “Giọng Google Cloud” trong HUONG_DAN.md. Để trống rồi Lưu = tắt.</p>
       <div class="form-actions" style="justify-content:flex-start;margin:8px 0 0"><button class="btn" type="button" onclick="openUsage()">📊 Mức dùng & chi phí</button></div></div>`:''}
     <label>Tốc độ đọc tiếng Việt<select id="sRate" class="select"><option value="0.7">Chậm</option><option value="0.85">Vừa</option><option value="1">Nhanh</option></select></label>
-    <p class="muted" style="font-size:13px;margin:0 0 8px">${has?'Giọng tiếng Việt: '+esc(VOICE.name):'⚠️ Máy này chưa có giọng đọc tiếng Việt. iPhone: Cài đặt › Trợ năng › Nội dung được đọc › Giọng nói › Tiếng Việt. Android: cài “Dịch vụ chuyển văn bản thành giọng nói của Google” và tải tiếng Việt.'}${IN_ZALO?'<br>📱 Đang mở trong Zalo – nên bấm ⋯ › Mở bằng Safari / Chrome để đọc to ổn định hơn.':''}</p>
+    <p class="muted" style="font-size:13px;margin:0 0 8px">${has?(TTS_ON&&SET.cloud!==false?'Giọng tiếng Việt của máy (dự phòng): ':'Giọng tiếng Việt: ')+esc(VOICE.name):'⚠️ Máy này chưa có giọng đọc tiếng Việt. iPhone: Cài đặt › Trợ năng › Nội dung được đọc › Giọng nói › Tiếng Việt. Android: cài “Dịch vụ chuyển văn bản thành giọng nói của Google” và tải tiếng Việt.'}${IN_ZALO?'<br>📱 Đang mở trong Zalo – nên bấm ⋯ › Mở bằng Safari / Chrome để đọc to ổn định hơn.':''}</p>
     <div class="form-actions" style="justify-content:flex-start;margin:0 0 12px"><button class="btn" type="button" onclick="speak('Xin chào bé! Mình cùng học nhé.',null,m=>{$('spkStat').textContent=m})">🔊 Nghe thử tiếng Việt</button></div>
-    <label>Giọng tiếng Anh${enOpts?`<select id="sEnVoice" class="select">${enOpts}</select>`:'<span class="muted" style="font-weight:600">Máy chưa có giọng tiếng Anh.</span>'}</label>
+    ${TTS_ON&&SET.cloud!==false?'<p style="font-size:13px;margin:0 0 8px;color:#047857">✅ Đang đọc cả tiếng Việt và tiếng Anh bằng <b>giọng Google</b>. Các giọng của máy bên dưới chỉ dùng khi mất mạng.</p>':''}
+    <label>${TTS_ON&&SET.cloud!==false?'Giọng tiếng Anh của máy (dự phòng)':'Giọng tiếng Anh'}${enOpts?`<select id="sEnVoice" class="select">${enOpts}</select>`:'<span class="muted" style="font-weight:600">Máy chưa có giọng tiếng Anh.</span>'}</label>
     <label>Tốc độ đọc tiếng Anh<select id="sRateEn" class="select"><option value="0.65">Rất chậm</option><option value="0.8">Chậm</option><option value="0.9">Vừa</option><option value="1">Bình thường</option></select></label>
     <p class="muted" style="font-size:12.5px;margin:0 0 8px">Mẹo: chọn giọng có chữ <b>Enhanced / Nâng cao / Premium</b> (iPhone), <b>Google US English</b> (Android) hoặc <b>Natural</b> (máy tính, trình duyệt Edge) là đọc hay nhất.
       iPhone tải thêm giọng hay: Cài đặt › Trợ năng › Nội dung được đọc › Giọng nói › Tiếng Anh › chọn <b>Samantha (Nâng cao)</b> hoặc <b>Ava (Cao cấp)</b> › tải về.</p>
