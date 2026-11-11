@@ -1,6 +1,6 @@
 /* Bé vui học lớp 1 — giao diện (chạy trên GitHub Pages, gọi máy chủ Apps Script qua API).
  * Tác giả: Phạm Văn An · 0848.355.888 */
-const APP_VERSION='2026.11.11-2'; // = ngày cập nhật; nhớ đổi CACHE trong sw.js cho trùng
+const APP_VERSION='2026.11.11-3'; // = ngày cập nhật; nhớ đổi CACHE trong sw.js cho trùng
 const $=id=>document.getElementById(id);
 let TOKEN='',ME=null,BANK={words:[],sentences:[]},STATS={stars:0,sessions:0,days:{},topics:{},recent:[]};
 let SUB='toan',QZ=null,PSUB='toan';
@@ -724,12 +724,19 @@ async function startApp(){let cached=null;try{cached=JSON.parse(ls('hl1_boot')||
     if(cached.me.expires&&todayISO()>cached.me.expires){forgetToken();return showLogin('Tài khoản đã hết hạn sử dụng (dùng đến '+isoToVN(cached.me.expires)+'). Nhờ bố mẹ liên hệ để gia hạn nhé.')}
     applyBoot(cached);SUB=ls('hl1_sub')||'toan';showView('home');renderHome()
   }else busy(true);
-  try{const b=await gas('bootstrap');ls('hl1_boot',JSON.stringify(b));applyBoot(b);
+  try{const b=await gas('bootstrap');ls('hl1_boot',JSON.stringify(b));applyBoot(b);BOOT_AT=Date.now();
     if(!cached){SUB=ls('hl1_sub')||'toan';showView('home');renderHome()}
     else if($('v-home').classList.contains('on')&&!QZ)renderHome();
     flushQueue()}
   catch(e){if(!cached)toast(e.message,true)}
   finally{busy(false)}}
+/* Điện thoại hay để app mở ngầm nhiều ngày: mỗi lần quay lại app (cách lần trước > 2 phút) thì lấy lại dữ liệu
+   từ máy chủ (giọng Google vừa bật, bài/từ mới, sao…), không làm gián đoạn bài đang làm. */
+let BOOT_AT=0;
+function refreshBoot(){if(!TOKEN||!BOOT_AT||Date.now()-BOOT_AT<120000||navigator.onLine===false)return;BOOT_AT=Date.now();
+  gas('bootstrap').then(b=>{ls('hl1_boot',JSON.stringify(b));applyBoot(b);
+    if($('v-home').classList.contains('on')&&!(QZ&&!QZ.done))renderHome()}).catch(()=>{})}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refreshBoot()});
 function openChangePw(){openModal('🔑 Đổi mật khẩu',`<form class="u-form" id="pwForm"><label>Mật khẩu hiện tại<input id="pwOld" class="input" type="password" autocomplete="current-password"></label>
   <label>Mật khẩu mới (ít nhất 6 ký tự)<input id="pwNew" class="input" type="password" autocomplete="new-password"></label><label>Nhập lại mật khẩu mới<input id="pwNew2" class="input" type="password" autocomplete="new-password"></label>
   <div class="form-actions"><button class="btn primary" type="submit">Đổi mật khẩu</button></div></form>`);
