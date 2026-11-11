@@ -1,6 +1,6 @@
 /* Bé vui học lớp 1 — giao diện (chạy trên GitHub Pages, gọi máy chủ Apps Script qua API).
  * Tác giả: Phạm Văn An · 0848.355.888 */
-const APP_VERSION='2026.11.11'; // = ngày cập nhật; nhớ đổi CACHE trong sw.js cho trùng
+const APP_VERSION='2026.11.11-2'; // = ngày cập nhật; nhớ đổi CACHE trong sw.js cho trùng
 const $=id=>document.getElementById(id);
 let TOKEN='',ME=null,BANK={words:[],sentences:[]},STATS={stars:0,sessions:0,days:{},topics:{},recent:[]};
 let SUB='toan',QZ=null,PSUB='toan';
@@ -69,18 +69,22 @@ const ttsText=(text,lang)=>lang==='en'?enSay(text):sayify(text).trim();
 function ttsGet(text,lang){const t=ttsText(text,lang),r=ttsRate(lang),k=lang+'|'+r+'|'+t;if(TTS_MEM.has(k))return TTS_MEM.get(k);
   const pr=gas('tts',t,lang,r).then(x=>x.a);pr.catch(()=>TTS_MEM.delete(k));TTS_MEM.set(k,pr);if(TTS_MEM.size>300)TTS_MEM.delete(TTS_MEM.keys().next().value);return pr}
 function prefetch(text,lang){if(TTS_ON&&SET.cloud!==false&&text)ttsGet(text,lang==='en'?'en':'vi').catch(()=>{})}
-function speak(text,btn,report,lang,noVoice){if(!text)return;const EN=lang==='en';mediaMode();
+/* done: hàm gọi khi đọc xong (dùng để đọc nối câu tiếng Việt rồi từ tiếng Anh) */
+function speak(text,btn,report,lang,noVoice,done){if(!text)return;const EN=lang==='en';mediaMode();
   if(TTS_ON&&SET.cloud!==false&&!noVoice){const seq=++SPK_SEQ;stopAll();btn&&btn.classList.add('on');
     const slow=setTimeout(()=>{if(seq===SPK_SEQ)report&&report('⏳ Đang tải giọng Google…')},400);
     ttsGet(text,EN?'en':'vi').then(a=>{clearTimeout(slow);if(seq!==SPK_SEQ)return;const el=voiceEl();
-      el.onended=()=>{btn&&btn.classList.remove('on');report&&report('✅ Đã đọc xong bằng giọng Google (vẫn nghe được khi iPhone để im lặng; âm lượng theo nút bên hông máy).')};
-      el.onerror=()=>{btn&&btn.classList.remove('on');report&&report('⚠️ Không phát được file âm thanh, chuyển sang giọng của máy.');speakLocal(text,btn,report,lang)};
+      el.onended=()=>{btn&&btn.classList.remove('on');report&&report('✅ Đã đọc xong bằng giọng Google (vẫn nghe được khi iPhone để im lặng; âm lượng theo nút bên hông máy).');if(seq===SPK_SEQ&&done)done()};
+      el.onerror=()=>{btn&&btn.classList.remove('on');report&&report('⚠️ Không phát được file âm thanh, chuyển sang giọng của máy.');speakLocal(text,btn,report,lang,false,done)};
       el.src='data:audio/mpeg;base64,'+a;const pr=el.play();report&&report('▶️ Đang đọc bằng giọng Google…');
-      if(pr&&pr.catch)pr.catch(err=>{if(seq!==SPK_SEQ)return;btn&&btn.classList.remove('on');report&&report('⚠️ Máy chặn tự phát ('+err.name+'). Chạm vào màn hình rồi bấm 🔊 lại.');speakLocal(text,btn,report,lang)})})
-     .catch(e=>{clearTimeout(slow);if(seq!==SPK_SEQ)return;btn&&btn.classList.remove('on');report&&report('⚠️ Giọng Google lỗi: '+e.message.replace(/^TTS_OFF: /,'')+' — dùng giọng của máy.');speakLocal(text,btn,report,lang)});
+      if(pr&&pr.catch)pr.catch(err=>{if(seq!==SPK_SEQ)return;btn&&btn.classList.remove('on');report&&report('⚠️ Máy chặn tự phát ('+err.name+'). Chạm vào màn hình rồi bấm 🔊 lại.');speakLocal(text,btn,report,lang,false,done)})})
+     .catch(e=>{clearTimeout(slow);if(seq!==SPK_SEQ)return;btn&&btn.classList.remove('on');report&&report('⚠️ Giọng Google lỗi: '+e.message.replace(/^TTS_OFF: /,'')+' — dùng giọng của máy.');speakLocal(text,btn,report,lang,false,done)});
     return}
-  speakLocal(text,btn,report,lang,noVoice)}
-function speakLocal(text,btn,report,lang,noVoice){const EN=lang==='en';
+  speakLocal(text,btn,report,lang,noVoice,done)}
+/* Đáp án là chữ tiếng Anh (có chữ cái Latin, không có dấu tiếng Việt)? */
+const VI_MARK=/[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i;
+const isEnText=t=>/[a-z]/i.test(t)&&!VI_MARK.test(t);
+function speakLocal(text,btn,report,lang,noVoice,done){const EN=lang==='en';
   if(!('speechSynthesis' in window)){report&&report('⚠️ Trình duyệt này không hỗ trợ đọc to.');return}
   if(!text)return;
   const ss=speechSynthesis;
@@ -89,10 +93,11 @@ function speakLocal(text,btn,report,lang,noVoice){const EN=lang==='en';
     if(EN){if(VOICE_EN&&!noVoice)u.voice=VOICE_EN}else if(!IOS&&VOICE)u.voice=VOICE;
     u.rate=EN?(SET.rateEn||0.8):SET.rate;u.pitch=EN?1.05:1;u.volume=1;let started=false;
     u.onstart=()=>{started=true;report&&report('▶️ Đang đọc bằng giọng của máy…'+(EN&&VOICE_EN?' ('+VOICE_EN.name+')':''))};
-    u.onend=()=>{btn&&btn.classList.remove('on');report&&report(started?'✅ Đã đọc xong bằng giọng của máy. Giọng này bị tắt khi iPhone để im lặng.':SPK_HINT())};
-    u.onerror=e=>{btn&&btn.classList.remove('on');report&&report('⚠️ Lỗi giọng đọc: '+(e&&e.error||'không rõ')+'. '+SPK_HINT())};
+    let retried=false;
+    u.onend=()=>{if(retried)return;btn&&btn.classList.remove('on');report&&report(started?'✅ Đã đọc xong bằng giọng của máy. Giọng này bị tắt khi iPhone để im lặng.':SPK_HINT());if(started&&done)setTimeout(done,IOS?200:60)};
+    u.onerror=e=>{if(retried)return;btn&&btn.classList.remove('on');report&&report('⚠️ Lỗi giọng đọc: '+(e&&e.error||'không rõ')+'. '+SPK_HINT())};
     if(btn)btn.classList.add('on');ss.speak(u);if(ss.paused)ss.resume();
-    if(EN&&IOS&&VOICE_EN&&!noVoice)setTimeout(()=>{if(!started){try{ss.cancel()}catch(e){}speakLocal(text,btn,report,lang,true)}},1500);
+    if(EN&&IOS&&VOICE_EN&&!noVoice)setTimeout(()=>{if(!started){retried=true;try{ss.cancel()}catch(e){}speakLocal(text,btn,report,lang,true,done)}},1500);
     else if(report)setTimeout(()=>{if(!started)report(SPK_HINT())},2500);
   }catch(e){report&&report('⚠️ '+e.message)}};
   if(ss.speaking||ss.pending){ss.cancel();setTimeout(go,IOS?150:30)}else go();
@@ -578,7 +583,7 @@ function renderQ(){const q=QZ.qs[QZ.i],n=QZ.qs.length;$('qProg').style.width=(QZ
   const say=q.say!=null&&q.say!==''?q.say:(q.lang==='en'?'':q.text),sl=q.lang||'vi';$('spk').onclick=()=>speak(say||q.text,$('spk'),null,say?sl:'vi');
   if(q.type==='choice')$('qCard').querySelectorAll('.opt').forEach(b=>b.onclick=()=>answer(Number(b.dataset.i),b));else wireOrder(q);
   if(SET.auto&&say)setTimeout(()=>speak(say,$('spk'),null,sl),250);
-  if(TTS_ON&&SET.cloud!==false){if(!say)prefetch(q.text,'vi');if(q.type==='choice')prefetch('Chưa đúng rồi. Đáp án đúng là '+q.opts[q.ans].t,'vi');else q.tokens.forEach(t=>prefetch(t,q.lang));
+  if(TTS_ON&&SET.cloud!==false){if(!say)prefetch(q.text,'vi');if(q.type==='choice'){const r=q.opts[q.ans].t;if(q.lang==='en'&&isEnText(r)){prefetch('Chưa đúng rồi. Đáp án đúng là','vi');prefetch(r,'en')}else prefetch('Chưa đúng rồi. Đáp án đúng là '+r,'vi')}else q.tokens.forEach(t=>prefetch(t,q.lang));
     const nq=QZ.qs[QZ.i+1];if(nq){const ns=nq.say!=null&&nq.say!==''?nq.say:(nq.lang==='en'?'':nq.text);if(ns)prefetch(ns,nq.lang||'vi')}}}
 function wireOrder(q){const line=$('oLine'),chips=$('oChips'),chk=$('oCheck');const order=[];
   const sync=()=>{line.innerHTML=order.map((i,k)=>`<button class="chip" data-k="${k}">${esc(q.tokens[i])}</button>`).join('');chips.querySelectorAll('.chip').forEach(c=>c.classList.toggle('used',order.includes(Number(c.dataset.i))));chk.disabled=order.length!==q.tokens.length};
@@ -593,7 +598,8 @@ function finishAnswer(ok,got,right,btn){QZ.lock=true;const q=QZ.qs[QZ.i];
   if(ok){QZ.ok++;if(q.key)wbDel(q.key);$('qStars').textContent=QZ.ok;beep('ok');flyStar(btn);const p=pick(PRAISE);speak(p);
     $('fb').innerHTML=`<div class="feedback ok"><p>✅ ${p}</p></div>`;setTimeout(nextQ,1300)}
   else{beep('bad');wbAdd(q);QZ.wrong.push({k:q.code,q:plain(q.text)+(q.type==='choice'&&q.vis&&!/<svg/.test(q.vis)?' '+plain(q.vis).slice(0,60):''),a:got,c:right});
-    speak('Chưa đúng rồi. Đáp án đúng là '+right);
+    if(q.lang==='en'&&isEnText(right)){const qi=QZ.i;speak('Chưa đúng rồi. Đáp án đúng là',null,null,'vi',false,()=>{if(QZ&&QZ.i===qi&&!QZ.done)speak(right,null,null,'en')})}
+    else speak('Chưa đúng rồi. Đáp án đúng là '+right);
     $('fb').innerHTML=`<div class="feedback bad"><p>💡 Đáp án đúng: <b>${esc(right)}</b><br><span style="font-size:15px">${esc(q.explain||'')}</span></p><button class="btn orange" onclick="nextQ()">Tiếp tục ➜</button></div>`}}
 function nextQ(){if(!QZ||QZ.done)return;QZ.i++;if(QZ.i>=QZ.qs.length)return finishQuiz();renderQ()}
 async function finishQuiz(){if(!QZ||QZ.done)return;QZ.done=true;stopSpeak();const n=QZ.qs.length,ok=QZ.ok,ratio=ok/n;const before=STATS.stars,earned=ok+(ok===n&&n>=10?3:0);
