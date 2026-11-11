@@ -1,124 +1,112 @@
-<!DOCTYPE html>
-<html lang="vi">
+<!doctype html>
+<html lang="vi" translate="no" class="notranslate">
 <head>
 <meta charset="utf-8">
-<!-- maximum-scale=1: iPhone không tự phóng to khi bấm vào ô nhập (đăng nhập xong bị zoom tràn màn hình). -->
+<meta name="google" content="notranslate">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<title>Bé vui học lớp 1 – Toán và Tiếng Việt</title>
-<meta name="description" content="Ôn Toán và Tiếng Việt lớp 1 (Kết nối tri thức): đọc to câu hỏi, sao thưởng, sticker, in phiếu bài tập.">
-<meta property="og:title" content="Bé vui học lớp 1">
-<meta property="og:description" content="Ôn Toán và Tiếng Việt lớp 1: đọc to câu hỏi, sao thưởng, sticker, in phiếu bài tập.">
-<meta name="theme-color" content="#f97316">
+<title>Bé vui học lớp 1</title>
+<meta name="description" content="Bé ôn Toán, Tiếng Việt, Tiếng Anh lớp 1 theo sách Kết nối tri thức.">
+<meta name="theme-color" content="#0d47a1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Bé vui học">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icon-192.png">
-<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Bé học">
-<style>
-html { -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%; } /* iPhone/Android khong tu phong to chu */
-
-  :root { --navy: #f97316; --bg: #fff8ef; --txt: #1e293b; --muted: #64748b; }
-  *, *::before, *::after { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--txt);
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
-  /* App Apps Script chiếm toàn màn hình; nằm trong khung nhúng nên Google không hiện thanh thông báo. */
-  #app { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: var(--bg); }
-  .cover { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 14px; padding: 24px; text-align: center; background: var(--bg); }
-  .cover[hidden] { display: none; }
-  .logo { width: 72px; height: 72px; border-radius: 18px; }
-  .spin { width: 34px; height: 34px; border: 4px solid #dbe3ef; border-top-color: var(--navy); border-radius: 50%;
-    animation: spin 0.9s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  h1 { margin: 0; font-size: 20px; color: var(--navy); }
-  p { margin: 0; max-width: 460px; line-height: 1.55; color: var(--muted); font-size: 14px; overflow-wrap: anywhere; }
-  .btn { display: inline-block; background: var(--navy); color: #fff; padding: 12px 22px; border-radius: 12px;
-    text-decoration: none; font-weight: 700; font-size: 15px; border: 0; cursor: pointer; }
-  .btn.light { background: #fff; color: var(--navy); border: 1px solid #cbd5e1; }
-  .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-  code { background: #e2e8f0; padding: 1px 6px; border-radius: 6px; font-size: 13px; }
-</style>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="styles.css">
+<script src="config.js"></script>
+<script src="app.js" defer></script>
 </head>
-<body>
-<iframe id="app" title="Bé vui học lớp 1" allow="clipboard-read; clipboard-write; fullscreen; autoplay"></iframe>
+<body data-sub="toan">
+<div id="toast" class="toast"></div>
+<div id="loading" class="loading hidden"><div class="spinner"></div><span>Chờ một chút nhé…</span></div>
 
-<div class="cover" id="loading">
-  <img class="logo" src="icon-192.png" alt="">
-  <div class="spin"></div>
-  <p>Đang mở Bé vui học lớp 1…</p>
+<div id="loginBox" class="login-wrap hidden"><form class="login-card" id="loginForm" autocomplete="on">
+  <div class="logo">🎒</div><h1>Bé vui học lớp 1</h1><p class="muted" style="margin:0">Toán và Tiếng Việt · Kết nối tri thức</p>
+  <label>Tên đăng nhập<input id="lUser" class="input" name="username" autocomplete="username" autocapitalize="off" required></label>
+  <label>Mật khẩu<input id="lPass" class="input" name="password" type="password" autocomplete="current-password" required></label>
+  <div id="lMsg" class="login-msg"></div>
+  <button class="btn primary" id="lBtn" type="submit" style="min-height:50px;font-size:18px">Vào học thôi! 🚀</button>
+  <p class="muted" style="font-size:12px;margin:0">Quên mật khẩu? Nhờ bố mẹ cấp lại.</p>
+</form></div>
+
+<div id="app">
+  <header class="top"><div class="top-in">
+    <div class="brand" onclick="goHome()"><span>🎒</span><em>Bé vui học</em></div>
+    <div class="star-chip" title="Tổng số sao">⭐ <span id="starTotal">0</span></div>
+    <nav class="nav">
+      <button data-v="home" onclick="goHome()"><b>🏠</b><span>Học</span></button>
+      <button data-v="stickers" onclick="showStickers()"><b>🏅</b><span>Sticker</span></button>
+      <button data-v="progress" onclick="showProgress()"><b>📈</b><span>Tiến bộ</span></button>
+      <button data-v="print" onclick="showPrint()"><b>🖨️</b><span>In phiếu</span></button>
+      <button data-v="accounts" class="need-admin" onclick="showAccounts()"><b>👥</b><span>Tài khoản</span></button>
+      <button onclick="openSettings()"><b>⚙️</b><span>Cài đặt</span></button>
+    </nav>
+  </div></header>
+
+  <main>
+    <section id="v-home" class="view on">
+      <div class="hello"><div class="ava" id="helloAva">🧒</div><div><h2 id="helloName">Chào bé!</h2><p class="muted" id="helloSub">Hôm nay mình học gì nào?</p></div></div>
+      <div class="subj-tabs">
+        <button class="subj-tab toan on" data-sub="toan" onclick="setSub('toan')"><b>🔢</b> Toán</button>
+        <button class="subj-tab tv" data-sub="tv" onclick="setSub('tv')"><b>📚</b> Tiếng Việt</button>
+        <button class="subj-tab ta" data-sub="ta" onclick="setSub('ta')"><b>🌍</b> Tiếng Anh</button>
+      </div>
+      <div class="mix"><div><b>🎲 Ôn tổng hợp</b><div class="muted" style="font-size:14px">Trộn câu hỏi từ nhiều bài để ôn nhanh.</div></div>
+        <button class="btn primary" id="mixBtn" onclick="pickCount(null)">Bắt đầu</button></div>
+      <div class="mix review" id="reviewBox"></div>
+      <div id="topicList"></div>
+    </section>
+
+    <section id="v-quiz" class="view"><div class="quiz">
+      <div class="q-top"><button class="x" onclick="quitQuiz()" title="Thoát">✕</button><div class="q-prog"><i id="qProg"></i></div><div class="q-num" id="qNum"></div><div class="star-chip">⭐ <span id="qStars">0</span></div></div>
+      <div class="q-card" id="qCard"></div>
+    </div></section>
+
+    <section id="v-result" class="view"><div class="result" id="resultBox"></div></section>
+
+    <section id="v-progress" class="view">
+      <div id="kidPick" class="kid-pick"></div>
+      <div id="progBox"></div>
+    </section>
+
+    <section id="v-stickers" class="view">
+      <div class="panel"><h3>🏅 Bộ sưu tập sticker</h3><p class="muted" id="stickerNote" style="margin-top:0"></p><div class="sticker-grid" id="stickerGrid"></div></div>
+    </section>
+
+    <section id="v-print" class="view">
+      <div class="panel">
+        <h3>🖨️ In phiếu bài tập</h3>
+        <div class="subj-tabs" style="margin-bottom:8px">
+          <button class="subj-tab toan on" data-psub="toan" onclick="setPrintSub('toan')"><b>🔢</b> Toán</button>
+          <button class="subj-tab tv" data-psub="tv" onclick="setPrintSub('tv')"><b>📚</b> Tiếng Việt</button>
+          <button class="subj-tab ta" data-psub="ta" onclick="setPrintSub('ta')"><b>🌍</b> Tiếng Anh</button>
+        </div>
+        <div class="pr-opts"><button class="btn sm" onclick="prAll(true)">Chọn hết</button><button class="btn sm" onclick="prAll(false)">Bỏ chọn</button></div>
+        <div class="pr-grid" id="prTopics"></div>
+        <div class="pr-opts">
+          <label>Số câu <select id="prN" class="select" style="width:auto;display:inline-block"><option>10</option><option selected>15</option><option>20</option><option>30</option></select></label>
+          <label class="chk" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="prKey" checked style="width:18px;height:18px"> Kèm đáp án (trang cuối)</label>
+          <button class="btn primary" onclick="makePaper()">✨ Tạo phiếu</button>
+        </div>
+        <div class="pr-opts hidden" id="prActs"><button class="btn green" onclick="doPrint()">🖨️ In ngay</button><button class="btn" onclick="savePdf()">⬇️ Tải PDF</button><button class="btn" onclick="makePaper()">🔄 Đổi đề khác</button></div>
+        <p class="muted" style="font-size:13px;margin:4px 0 0">Trên điện thoại nếu nút In không hiện hộp in, bấm <b>Tải PDF</b> rồi mở file để in.</p>
+      </div>
+      <div class="panel" style="overflow:auto"><div id="paper" class="paper"><p class="muted" style="text-align:center;font-family:Nunito,Arial">Chọn bài rồi bấm “Tạo phiếu”.</p></div></div>
+    </section>
+
+    <section id="v-accounts" class="view">
+      <div class="panel"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h3 style="margin:0">👥 Tài khoản</h3><button class="btn primary" onclick="editUser(-1)">＋ Thêm tài khoản</button></div>
+        <p class="muted" style="font-size:14px">Mỗi bé một tài khoản (tên đăng nhập có thể là số điện thoại của bố mẹ). Mật khẩu mặc định trùng tên đăng nhập.<br><b>Quản trị</b>: tạo tài khoản, xem tiến bộ của mọi bé · <b>Học sinh</b>: học, in phiếu, xem tiến bộ của mình.</p>
+        <div id="userList" class="ulist"></div></div>
+      <div class="panel"><h3>Link app gửi cho người dùng</h3><p class="muted" style="font-size:14px;margin-top:0">Dùng trong nội dung sao chép khi tạo tài khoản (thường là trang GitHub của app).</p>
+        <div style="display:flex;gap:8px"><input id="pubUrl" class="input" placeholder="https://vanan83.github.io/hoclop1/"><button class="btn primary" onclick="savePubUrl()">Lưu</button></div></div>
+      <div class="panel"><h3>📝 Sửa câu hỏi Tiếng Việt</h3><p class="muted" style="font-size:14px;margin:0">Mở Google Sheet của app: sheet <b>TU_VUNG</b> (từ + hình emoji) và sheet <b>CAU</b> (câu + từ chính + từ sai để chọn). Thêm dòng mới là app tự dùng ở lần mở sau.</p></div>
+    </section>
+  </main>
+  <div class="app-ft">Tác giả: Phạm Văn An · Điện thoại: 0848.355.888<br><span id="appVer"></span></div>
 </div>
 
-<div class="cover" id="blocked" hidden>
-  <img class="logo" src="icon-192.png" alt="">
-  <h1>Chưa mở được trong trang này</h1>
-  <p>Có thể do mạng chậm, Google đang lỗi, hoặc trình duyệt chặn khung nhúng. Bấm "Thử lại",
-     hoặc mở trực tiếp ứng dụng.</p>
-  <div class="row">
-    <a class="btn" id="direct" target="_top" rel="noopener">Mở ứng dụng trực tiếp</a>
-    <button class="btn light" id="retry" type="button">Thử lại</button>
-    <button class="btn light" id="wait" type="button">Vẫn chờ</button>
-  </div>
-  <p>Mở trực tiếp vẫn dùng được bình thường, chỉ là có thanh thông báo của Google ở trên cùng.</p>
-</div>
-
-<div class="cover" id="setup" hidden>
-  <h1>Chưa cài đường link ứng dụng</h1>
-  <p>Mở file <code>index.html</code> trên GitHub, sửa dòng <code>APP_URL</code> thành đường link
-     <code>…/exec</code> của Web App Bé vui học rồi bấm Commit.</p>
-</div>
-
-<script>
-  // Đường link /exec của Web App Bé vui học (đã điền sẵn – tải file này lên GitHub là chạy, không cần sửa).
-  // Chỉ phải sửa khi tạo "Lượt triển khai mới" (link đổi); triển khai "Phiên bản mới" thì link giữ nguyên.
-  const APP_URL = 'https://script.google.com/macros/s/AKfycbx-2FQIVI3QaGeqMUT5iTJiu_h8w46XCFbQ6GxxNtZu_oQZn4X7rBdNUqdK7FRYGR2E/exec';
-
-  const $ = id => document.getElementById(id);
-  const WAIT_MS = 15000;   // quá thời gian này mà app chưa báo "đã tải xong" thì hiện nút Mở trực tiếp
-  let ready = false, timer = null;
-
-  function start() {
-    if (!/^https:\/\/script\.google\.com\/.+\/exec$/.test(APP_URL) || APP_URL.includes('DAN_MA_TRIEN_KHAI')) {
-      $('loading').hidden = true; $('setup').hidden = false; return;
-    }
-    $('direct').href = APP_URL;
-    $('blocked').hidden = true; $('loading').hidden = false;
-    ready = false;
-    $('app').src = APP_URL;
-    clearTimeout(timer);
-    timer = setTimeout(() => { if (!ready) { $('loading').hidden = true; $('blocked').hidden = false; } }, WAIT_MS);
-  }
-
-  // Giữ hộ dữ liệu đăng nhập cho app: iPhone hay xóa bộ nhớ của khung khác địa chỉ (app mở từ màn hình chính
-  // phải đăng nhập lại), còn bộ nhớ của chính trang github.io thì được giữ bền.
-  const BRIDGE_APP = 'hoclop1', BRIDGE_PREFIX = 'hl1_', STORE_KEY = 'bridge_' + BRIDGE_APP;
-  const readStore = () => { try { return JSON.parse(localStorage.getItem(STORE_KEY) || '{}') || {}; } catch (e) { return {}; } };
-  const writeStore = o => { try { localStorage.setItem(STORE_KEY, JSON.stringify(o)); } catch (e) {} };
-
-  window.addEventListener('message', e => {
-    let host = '';
-    try { host = new URL(e.origin).hostname; } catch (err) { return; }
-    if (!/\.googleusercontent\.com$/.test(host)) return;   // chỉ nói chuyện với khung app của Google
-    const d = e.data || {};
-    // App Bé vui học (Index.html) gửi tín hiệu này khi đã tải xong trong khung.
-    if (d.type === 'hl1-ready') {
-      ready = true; clearTimeout(timer);
-      $('loading').hidden = true; $('blocked').hidden = true;
-      return;
-    }
-    if (d.app !== BRIDGE_APP) return;
-    if (d.type === 'store-get') {
-      e.source.postMessage({ type: 'store-data', app: BRIDGE_APP, items: readStore() }, e.origin);
-    } else if (d.type === 'store-set' && String(d.key).startsWith(BRIDGE_PREFIX)) {
-      const o = readStore(); o[d.key] = String(d.value); writeStore(o);
-    } else if (d.type === 'store-del' && String(d.key).startsWith(BRIDGE_PREFIX)) {
-      const o = readStore(); delete o[d.key]; writeStore(o);
-    }
-  });
-
-  $('retry').onclick = start;
-  $('wait').onclick = () => { $('blocked').hidden = true; };   // ẩn thông báo, xem khung đang hiện gì
-  start();
-</script>
+<div id="uModal" class="modal hidden" onclick="if(event.target===this)closeModal()"><div class="modal-card"><div class="modal-head"><h3 id="mTitle"></h3><button onclick="closeModal()">✕</button></div><div class="modal-body" id="mBody"></div></div></div>
+<div id="printArea"></div>
 </body>
 </html>
