@@ -1,6 +1,6 @@
 /* Bé vui học lớp 1 — giao diện (chạy trên GitHub Pages, gọi máy chủ Apps Script qua API).
  * Tác giả: Phạm Văn An · 0848.355.888 */
-const APP_VERSION='2026.11.11-6'; // = ngày cập nhật; nhớ đổi CACHE trong sw.js cho trùng
+const APP_VERSION='2026.11.11-8'; // = ngày cập nhật; nhớ đổi CACHE trong sw.js cho trùng
 const $=id=>document.getElementById(id);
 let TOKEN='',ME=null,BANK={words:[],sentences:[]},STATS={stars:0,sessions:0,days:{},topics:{},recent:[]};
 let SUB='toan',QZ=null,PSUB='toan';
@@ -554,7 +554,7 @@ function startReview(n){closeModal();const items=wbGet().filter(x=>TNAME[x.code]
   let codes=weakCodes(SUB);if(!codes.length)codes=[...new Set(items.map(q=>q.code))];if(!codes.length)codes=TOPICS[SUB].flatMap(g=>g.items.map(x=>x[0]));
   const fill=items.length<n?buildQuestions(shuf(codes),n-items.length,false,items.map(q=>q.key)):[];const qs=shuf(items.concat(fill));
   if(!qs.length)return toast('Chưa có câu để ôn',true);
-  QZ={code:'review_'+SUB,topic:'Ôn lại câu sai',sub:SUB,qs,i:0,ok:0,wrong:[],t0:Date.now(),done:false};showView('quiz');renderQ()}
+  QZ={code:'review_'+SUB,topic:'Ôn lại câu sai',sub:SUB,qs,i:0,ok:0,wrong:[],parts:{},t0:Date.now(),done:false};showView('quiz');renderQ()}
 function pickCount(code){const title=code==='__review'?'🔁 Ôn lại câu sai':code?TNAME[code].name:'Ôn tổng hợp '+SUBNAME[SUB];
   openModal(title,`<p class="muted" style="margin:0">Bé muốn làm bao nhiêu câu?</p><div class="count-pick">
     <button onclick="startQuiz('${code||''}',10)">10<small>Nhanh</small></button><button onclick="startQuiz('${code||''}',15)">15<small>Vừa</small></button><button onclick="startQuiz('${code||''}',20)">20<small>Nhiều</small></button></div>
@@ -571,10 +571,14 @@ function buildQuestions(codes,n,forPrint,avoid){const qs=[],keys=new Set(avoid||
   return qs}
 function startQuiz(code,n){if(code==='__review')return startReview(n);closeModal();PRAISE.forEach(p=>prefetch(p,'vi'));const codes=code?[code]:TOPICS[SUB].flatMap(g=>g.items.map(x=>x[0]));
   const qs=buildQuestions(code?[code]:shuf(codes),n);if(!qs.length)return toast('Chưa có câu hỏi cho bài này (kiểm tra sheet TU_VUNG / CAU).',true);
-  QZ={code:code||(SUB+'_mix'),topic:code?TNAME[code].name:'Ôn tổng hợp',sub:code?TNAME[code].sub:SUB,qs,i:0,ok:0,wrong:[],t0:Date.now(),done:false};
+  QZ={code:code||(SUB+'_mix'),topic:code?TNAME[code].name:'Ôn tổng hợp',sub:code?TNAME[code].sub:SUB,qs,i:0,ok:0,wrong:[],parts:{},t0:Date.now(),done:false};
   showView('quiz');renderQ()}
 function quitQuiz(){if(confirm('Bé muốn dừng bài này à?')){QZ=null;stopSpeak();showView('home');renderHome()}}
-function renderQ(){const q=QZ.qs[QZ.i],n=QZ.qs.length;$('qProg').style.width=(QZ.i/n*100)+'%';$('qNum').textContent=`Câu ${QZ.i+1}/${n}`;$('qStars').textContent=QZ.ok;
+/* Bảng số câu: xanh = đúng, đỏ = sai, viền xanh dương = đang làm; bấm số câu chưa làm để chuyển tới câu đó */
+function renderDots(){const d=$('qDots');if(!d||!QZ)return;const n=QZ.qs.length,done=QZ.qs.filter(x=>x._st).length;$('qProg').style.width=(done/n*100)+'%';
+  d.innerHTML=QZ.qs.map((x,k)=>`<button class="${x._st||''}${k===QZ.i?' cur':''}"${x._st?' disabled':''} onclick="goQ(${k})" title="Câu ${k+1}${x._st==='ok'?' – đúng':x._st==='bad'?' – sai':''}">${k+1}</button>`).join('')}
+function goQ(k){if(!QZ||QZ.done||k===QZ.i||QZ.qs[k]._st)return;stopSpeak();QZ.i=k;renderQ()}
+function renderQ(){const q=QZ.qs[QZ.i],n=QZ.qs.length;renderDots();$('qNum').textContent=`Câu ${QZ.i+1}/${n}`;$('qStars').textContent=QZ.ok;
   QZ.lock=false;let h=`<div class="q-head"><button class="speak" id="spk" title="Nghe đọc">🔊</button><div class="q-text">${esc(q.text)}</div></div><div class="q-vis">${q.vis||''}</div>`;
   if(q.type==='choice'){const long=q.opts.some(o=>o.t.length>12);const cls=q.cls||(long||q.opts.length===2&&q.txt?'one':'');
     h+=`<div class="opts ${cls}">${q.opts.map((o,i)=>`<button class="opt${q.txt||o.t.length>3&&!/^<svg/.test(o.h)?' txt':''}" data-i="${i}">${o.h}</button>`).join('')}</div>`}
@@ -594,16 +598,39 @@ function answer(i,btn){if(QZ.lock)return;const q=QZ.qs[QZ.i],ok=i===q.ans;const 
   all.forEach((b,k)=>{if(k===q.ans)b.classList.add('ok');else if(k===i)b.classList.add('bad');else b.classList.add('dim')});
   finishAnswer(ok,q.opts[i].t,q.opts[q.ans].t,btn)}
 const PRAISE=['Đúng rồi!','Giỏi quá!','Tuyệt vời!','Hoan hô!','Bé làm tốt lắm!'];
-function finishAnswer(ok,got,right,btn){QZ.lock=true;const q=QZ.qs[QZ.i];
+function nextBtn(cls){const last=!QZ.qs.some(x=>!x._st);return `<button class="btn ${cls}" id="nextBtn" onclick="nextQ()">${last?'Xem kết quả 🏁':'Câu tiếp ➜'}</button>`}
+function finishAnswer(ok,got,right,btn){QZ.lock=true;const q=QZ.qs[QZ.i];q._st=ok?'ok':'bad';renderDots();if(q.code){const pt=(QZ.parts[q.code]=QZ.parts[q.code]||[0,0]);pt[0]++;if(ok)pt[1]++}
   if(ok){QZ.ok++;if(q.key)wbDel(q.key);$('qStars').textContent=QZ.ok;beep('ok');flyStar(btn);const p=pick(PRAISE);speak(p);
-    $('fb').innerHTML=`<div class="feedback ok"><p>✅ ${p}</p></div>`;setTimeout(nextQ,1300)}
+    $('fb').innerHTML=`<div class="feedback ok"><p>✅ ${p}</p>${nextBtn('green')}</div>`}
   else{beep('bad');wbAdd(q);QZ.wrong.push({k:q.code,q:plain(q.text)+(q.type==='choice'&&q.vis&&!/<svg/.test(q.vis)?' '+plain(q.vis).slice(0,60):''),a:got,c:right});
     if(q.lang==='en'&&isEnText(right)){const qi=QZ.i;speak('Chưa đúng rồi. Đáp án đúng là',null,null,'vi',false,()=>{if(QZ&&QZ.i===qi&&!QZ.done)speak(right,null,null,'en')})}
     else speak('Chưa đúng rồi. Đáp án đúng là '+right);
-    $('fb').innerHTML=`<div class="feedback bad"><p>💡 Đáp án đúng: <b>${esc(right)}</b><br><span style="font-size:15px">${esc(q.explain||'')}</span></p><button class="btn orange" onclick="nextQ()">Tiếp tục ➜</button></div>`}}
-function nextQ(){if(!QZ||QZ.done)return;QZ.i++;if(QZ.i>=QZ.qs.length)return finishQuiz();renderQ()}
+    $('fb').innerHTML=`<div class="feedback bad"><p>💡 Đáp án đúng: <b>${esc(right)}</b><br><span style="font-size:15px">${esc(q.explain||'')}</span></p>${nextBtn('orange')}</div>`}}
+function nextQ(){if(!QZ||QZ.done)return;const n=QZ.qs.length;   // sang câu chưa làm kế tiếp; làm hết thì xem kết quả
+  for(let k=1;k<=n;k++){const j=(QZ.i+k)%n;if(!QZ.qs[j]._st){QZ.i=j;return renderQ()}}finishQuiz()}
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&$('nextBtn')&&$('v-quiz').classList.contains('on')&&!e.target.closest('input,textarea')){e.preventDefault();$('nextBtn').click()}});
+/* ================= hẹn giờ học (lưu trên máy này) ================= */
+let TMR=null;try{TMR=JSON.parse(ls('hl1_timer')||'null')}catch(e){}
+function timerTick(){const c=$('timerChip');if(!c)return;
+  if(!TMR||!TMR.end){c.classList.remove('on','warn');$('timerTxt').textContent='Hẹn giờ';return}
+  const left=TMR.end-Date.now();
+  if(left<=0){if(left<-10*60000||document.body.classList.contains('locked')){TMR=null;ls('hl1_timer',null);return timerTick()}return timeUp()}   // hết giờ lâu rồi (app đóng) thì thôi không báo
+  const m=Math.floor(left/60000),s=Math.floor(left%60000/1000);$('timerTxt').textContent=m+':'+String(s).padStart(2,'0');
+  c.classList.add('on');c.classList.toggle('warn',left<60000)}
+setInterval(timerTick,1000);
+function openTimer(){openModal('⏰ Hẹn giờ học',`<p class="muted" style="margin-top:0">Chọn thời gian học. Hết giờ, app sẽ báo và nhắc bé dừng lại nghỉ ngơi.</p>
+  <div class="timer-opts">${[10,15,20,30,45,60].map(m=>`<button class="btn${TMR&&TMR.min===m?' primary':''}" onclick="setTimer(${m})">${m} phút</button>`).join('')}</div>
+  ${TMR?`<div class="form-actions" style="justify-content:center"><button class="btn orange" onclick="setTimer(0)">⏹ Tắt hẹn giờ</button></div>`:''}`)}
+function setTimer(min){TMR=min?{end:Date.now()+min*60000,min}:null;ls('hl1_timer',TMR?JSON.stringify(TMR):null);closeModal();timerTick();toast(min?`Đã hẹn ${min} phút học ⏰`:'Đã tắt hẹn giờ')}
+function timeUp(){const min=TMR.min;TMR=null;ls('hl1_timer',null);timerTick();
+  openModal('⏰ Hết giờ học rồi!',`<div style="text-align:center"><div style="font-size:64px;line-height:1.2">🛌</div><p style="font-size:19px;margin:8px 0 16px">Bé đã học đủ <b>${min} phút</b> rồi.<br>Mình dừng lại nghỉ ngơi nhé!</p>
+    <div class="form-actions" style="justify-content:center"><button class="btn green" onclick="restNow()">✅ Nghỉ thôi</button><button class="btn" onclick="setTimer(5)">⏳ Học thêm 5 phút</button></div></div>`);
+  beep('win');speak('Hết giờ học rồi. Bé đã học đủ '+min+' phút. Mình dừng lại nghỉ ngơi nhé!')}
+/* Nghỉ: bài đang làm dở thì chấm và lưu các câu đã làm (không mất sao), rồi về trang chính */
+function restNow(){closeModal();if(QZ&&!QZ.done){const done=QZ.qs.filter(x=>x._st);if(done.length){QZ.qs=done;return finishQuiz()}QZ=null}stopSpeak();showView('home');renderHome()}
 async function finishQuiz(){if(!QZ||QZ.done)return;QZ.done=true;stopSpeak();const n=QZ.qs.length,ok=QZ.ok,ratio=ok/n;const before=STATS.stars,earned=ok+(ok===n&&n>=10?3:0);
   const rec={sub:QZ.sub,code:QZ.code,topic:QZ.topic,n,ok,secs:Math.round((Date.now()-QZ.t0)/1000),wrong:QZ.wrong,at:Date.now()};
+  if(!TNAME[QZ.code])rec.parts=QZ.parts;   // ôn tổng hợp / ôn câu sai: điểm từng câu được tính vào thanh tiến trình của bài đó
   const face=ratio===1?'🏆':ratio>=.8?'🌟':ratio>=.5?'😊':'💪',msg=ratio===1?'Xuất sắc! Đúng hết luôn!':ratio>=.8?'Giỏi lắm!':ratio>=.5?'Khá lắm, cố thêm chút nữa nhé!':'Cố lên, làm lại sẽ giỏi hơn!';
   const newSt=stickersBetween(before,before+earned);
   $('resultBox').innerHTML=`<div class="face">${face}</div><h2>${msg}</h2><div class="score">Bé làm đúng <b>${ok}/${n}</b> câu</div><div class="stars">+${earned} ⭐</div>
@@ -620,7 +647,8 @@ async function flushQueue(){if(flushQueue.busy){flushQueue.again=true;return}flu
   try{do{flushQueue.again=false;await flushQueue_()}while(flushQueue.again)}finally{flushQueue.busy=false}}
 async function flushQueue_(){const q=JSON.parse(ls(queueKey())||'[]');if(!q.length)return;
   while(q.length){try{const r=await gas('saveResult',q[0]);q.shift();ls(queueKey(),JSON.stringify(q));STATS=r.stats}catch(e){if(/hết hạn/.test(e.message))return;const n=$('saveNote');if(n)n.textContent='Chưa lưu được (mất mạng?). App sẽ tự lưu lại lần sau.';return}}
-  const n=$('saveNote');if(n)n.textContent='Đã lưu kết quả ✓';$('starTotal').textContent=STATS.stars}
+  const n=$('saveNote');if(n)n.textContent='Đã lưu kết quả ✓';$('starTotal').textContent=STATS.stars;
+  if(!QZ&&$('v-home').classList.contains('on'))renderHome()}
 
 /* ================= sticker ================= */
 const STICKERS='🐶🐱🐰🦊🐻🐼🐨🐯🦁🐮🐷🐸🐵🐔🐧🐦🦄🐝🦋🐞🐢🐬🐳🦀🐙🌻🌈⭐🌙☀️🍓🍉🍦🧁🍭🎈🎁🎨🎹⚽🚀🚂🚁⛵🏰🎠👑💎🏆🥇'.match(/\p{Extended_Pictographic}/gu);

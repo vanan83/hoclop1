@@ -33,6 +33,7 @@
   <header class="top"><div class="top-in">
     <div class="brand" onclick="goHome()"><span>🎒</span><em>Bé vui học</em></div>
     <div class="star-chip" title="Tổng số sao">⭐ <span id="starTotal">0</span></div>
+    <button class="timer-chip" id="timerChip" onclick="openTimer()" title="Hẹn giờ học">⏰ <span id="timerTxt">Hẹn giờ</span></button>
     <nav class="nav">
       <button data-v="home" onclick="goHome()"><b>🏠</b><span>Học</span></button>
       <button data-v="stickers" onclick="showStickers()"><b>🏅</b><span>Sticker</span></button>
@@ -59,6 +60,7 @@
 
     <section id="v-quiz" class="view"><div class="quiz">
       <div class="q-top"><button class="x" onclick="quitQuiz()" title="Thoát">✕</button><div class="q-prog"><i id="qProg"></i></div><div class="q-num" id="qNum"></div><div class="star-chip">⭐ <span id="qStars">0</span></div></div>
+      <div class="q-dots" id="qDots"></div>
       <div class="q-card" id="qCard"></div>
     </div></section>
 

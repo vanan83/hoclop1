@@ -69,6 +69,23 @@ body.locked #app { display: none; }
 .brand em { font-style: normal; } .brand em::after { content: " lớp 1"; color: #7fd6ff; }
 .star-chip { display: flex; align-items: center; gap: 4px; background: rgba(255, 255, 255, .16); border: 1.5px solid rgba(255, 224, 138, .7); border-radius: 999px; padding: 4px 12px;
   font-weight: 900; color: #ffe08a; white-space: nowrap; }
+.timer-chip { display: flex; align-items: center; gap: 4px; border: 1.5px solid rgba(255, 255, 255, .45); background: rgba(255, 255, 255, .12); color: #fff;
+  border-radius: 999px; padding: 4px 11px; font: inherit; font-weight: 800; font-size: 14px; white-space: nowrap; cursor: pointer; font-variant-numeric: tabular-nums; }
+.timer-chip:hover { background: rgba(255, 255, 255, .22); }
+.timer-chip.on { background: #e8fff1; border-color: #34d399; color: #047857; }
+.timer-chip.warn { background: #fff1f0; border-color: #f87171; color: #b91c1c; animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { transform: scale(1.06); } }
+.timer-opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+.timer-opts .btn { justify-content: center; font-size: 17px; }
+.q-dots { display: flex; flex-wrap: wrap; gap: 6px; margin: -2px 0 12px; }
+.q-dots button { width: 34px; height: 34px; border-radius: 10px; border: 1.5px solid var(--line); background: #fff; font: inherit; font-weight: 800; font-size: 14px; color: var(--muted); cursor: pointer; }
+.q-dots button:not(:disabled):hover { border-color: #1769d1; color: #1769d1; }
+.q-dots button.cur { border: 2px solid #1769d1; color: #1769d1; box-shadow: 0 0 0 3px rgba(23, 105, 209, .18); }
+.q-dots button.ok { background: var(--oks); border-color: #34d399; color: #0b5c3b; }
+.q-dots button.bad { background: var(--bads); border-color: #f87171; color: #7f1d1d; }
+.q-dots button:disabled { cursor: default; }
+@media (max-width: 760px) { .q-dots { gap: 5px; } .q-dots button { width: 30px; height: 30px; font-size: 13px; border-radius: 9px; } .timer-chip { padding: 4px 9px; font-size: 13px; } }
+@media (max-width: 400px) { .timer-chip:not(.on) #timerTxt { display: none; } }
 .nav { display: flex; gap: 4px; }
 .nav button { border: 0; background: transparent; border-radius: 99px; padding: 8px 13px; font-weight: 800; color: rgba(255, 255, 255, .85); display: flex; align-items: center; gap: 5px; white-space: nowrap; transition: background .15s; }
 .nav button b { font-size: 19px; }

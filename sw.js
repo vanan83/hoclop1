@@ -1,7 +1,7 @@
 // sw.js — cho app mở ngay (lấy từ bộ nhớ đệm) và chạy được khi mất mạng.
 // Trả bản đã lưu ngay, đồng thời hỏi máy chủ bản mới (bỏ qua bộ nhớ HTTP 10 phút của GitHub).
 // Mỗi lần cập nhật app: đổi CACHE trùng với APP_VERSION trong app.js → máy học sinh tự lên bản mới.
-const CACHE = 'hl1-2026.11.11-6';
+const CACHE = 'hl1-2026.11.11-8';
 const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'config.js', 'manifest.webmanifest', 'icon-v2-192.png', 'icon-v2-512.png', 'apple-touch-icon-v2.png'];
 
 self.addEventListener('install', (e) => {
