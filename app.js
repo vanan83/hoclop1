@@ -1,6 +1,6 @@
 /* Bé vui học lớp 1 — giao diện (chạy trên GitHub Pages, gọi máy chủ Apps Script qua API).
  * Tác giả: Phạm Văn An · 0848.355.888 */
-const APP_VERSION='2026.11.11-4'; // = ngày cập nhật; nhớ đổi CACHE trong sw.js cho trùng
+const APP_VERSION='2026.11.11-5'; // = ngày cập nhật; nhớ đổi CACHE trong sw.js cho trùng
 const $=id=>document.getElementById(id);
 let TOKEN='',ME=null,BANK={words:[],sentences:[]},STATS={stars:0,sessions:0,days:{},topics:{},recent:[]};
 let SUB='toan',QZ=null,PSUB='toan';
@@ -78,7 +78,7 @@ function speak(text,btn,report,lang,noVoice,done){if(!text)return;const EN=lang=
       el.onerror=()=>{btn&&btn.classList.remove('on');report&&report('⚠️ Không phát được file âm thanh, chuyển sang giọng của máy.');speakLocal(text,btn,report,lang,false,done)};
       el.src='data:audio/mpeg;base64,'+a;const pr=el.play();report&&report('▶️ Đang đọc bằng giọng Google…');
       if(pr&&pr.catch)pr.catch(err=>{if(seq!==SPK_SEQ)return;btn&&btn.classList.remove('on');report&&report('⚠️ Máy chặn tự phát ('+err.name+'). Chạm vào màn hình rồi bấm 🔊 lại.');speakLocal(text,btn,report,lang,false,done)})})
-     .catch(e=>{clearTimeout(slow);if(seq!==SPK_SEQ)return;btn&&btn.classList.remove('on');report&&report('⚠️ Giọng Google lỗi: '+e.message.replace(/^TTS_OFF: /,'')+' — dùng giọng của máy.');speakLocal(text,btn,report,lang,false,done)});
+     .catch(e=>{clearTimeout(slow);if(seq!==SPK_SEQ)return;btn&&btn.classList.remove('on');report&&report('⚠️ Giọng Google lỗi: '+e.message.replace(/^TTS_OFF: /,'')+' — dùng giọng của máy.');if(/^TTS_OFF/.test(e.message))setTtsOn(false);speakLocal(text,btn,report,lang,false,done)});
     return}
   speakLocal(text,btn,report,lang,noVoice,done)}
 /* Đáp án là chữ tiếng Anh (có chữ cái Latin, không có dấu tiếng Việt)? */
@@ -680,6 +680,48 @@ async function savePdf(){busy(true);try{await loadPdfLib()}catch(e){busy(false);
 function cloudBoxHtml(){return TTS_ON?`<label class="chk"><input type="checkbox" id="sCloud" ${SET.cloud!==false?'checked':''}> Dùng giọng Google (hay hơn, vẫn đọc khi iPhone để im lặng)</label>`:'<p class="muted" style="font-size:13px;margin:0 0 8px">🔇 Đang dùng giọng có sẵn của máy: iPhone để im lặng sẽ không nghe. Quản trị nhập khoá Google Cloud để đọc được cả khi im lặng.</p>'}
 /* Đổi trạng thái giọng Google và ghi luôn vào dữ liệu lưu trong máy (lần mở sau đúng ngay) */
 function setTtsOn(on){TTS_ON=on;TTS_MEM.clear();try{const b=JSON.parse(ls('hl1_boot')||'null');if(b){b.tts=on;ls('hl1_boot',JSON.stringify(b))}}catch(e){}}
+/* ===== 📊 Mức dùng giọng Google & chi phí (chỉ Quản trị) ===== */
+const nf=n=>Math.round(n||0).toLocaleString('vi-VN'),vnd=n=>nf(n)+' đ',isoVN=s=>s?s.split('-').reverse().join('/'):'';
+async function openUsage(){busy(true);try{renderUsage(await gas('ttsUsage'))}catch(e){toast(e.message,true)}finally{busy(false)}}
+function renderUsage(r){const c=r.cfg,u=r.use,day=Math.max(1,r.day),dim=r.daysInMonth,[yy,mm]=r.month.split('-');
+  const capTxt=c.capPct>=1000?'không giới hạn':c.capPct+'%';
+  const tier=(k,name,price)=>{const used=u[k],free=r.free[k],pct=used/free*100,lim=c.capPct>=1000?Infinity:free*c.capPct/100;
+    const avg=used/day,proj=avg*dim,over=Math.max(0,proj-free),cost=over/1e6*price*c.usd;
+    let fc;if(used>=lim)fc=`🛑 Đã chạm giới hạn an toàn: tạm ngừng loại giọng này đến hết tháng.`;
+    else if(avg>0&&lim!==Infinity&&used+avg*(dim-day)>=lim){const d=Math.min(dim,day+Math.ceil((lim-used)/avg));fc=`⏳ Theo tốc độ hiện nay sẽ chạm giới hạn an toàn khoảng <b>${d}/${+mm}</b>, sau đó app tự đổi giọng (không mất tiền).`}
+    else fc=avg>0?`✅ Dự báo cả tháng ~${nf(proj)} ký tự (${Math.round(proj/free*100)}%) — vẫn trong phần miễn phí.`:'✅ Chưa dùng tháng này.';
+    const col=pct>=c.capPct?'#dc2626':pct>=80?'#f59e0b':'#16a34a';
+    return `<div style="border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:0 0 10px"><b>${name}</b>
+      <div style="display:flex;justify-content:space-between;font-size:14px;margin-top:4px"><span>${nf(used)} / ${nf(free)} ký tự</span><b style="color:${col}">${pct<10?pct.toFixed(1):Math.round(pct)}%</b></div>
+      <div class="bar" style="height:12px"><i style="width:${Math.min(100,pct)}%;background:${col}"></i></div>
+      <p style="font-size:13px;margin:6px 0 0">${fc}</p>
+      <p class="muted" style="font-size:12.5px;margin:4px 0 0">Trung bình ${nf(avg)} ký tự/ngày · Nếu bỏ giới hạn, tiền dự kiến tháng này: <b>${vnd(cost)}</b> (giá ${price} USD / 1 triệu ký tự vượt mức)</p></div>`};
+  let trial='';if(c.trialEnd){const left=Math.ceil((new Date(c.trialEnd+'T00:00:00')-new Date())/864e5);
+    trial=`<p style="font-size:13.5px;margin:0 0 6px">🎁 Tín dụng dùng thử: <b>${vnd(c.trialCredit)}</b> · hết hạn <b>${isoVN(c.trialEnd)}</b> (${left>0?'còn '+left+' ngày':'đã hết hạn — vào Google Cloud bấm “Nâng cấp” để giọng Google chạy tiếp'})</p>`}
+  const hist=r.hist.map(h=>`<tr><td>${h.m.split('-').reverse().join('/')}</td><td style="text-align:right">${nf(h.premium)}</td><td style="text-align:right">${nf(h.standard)}</td><td style="text-align:right">${nf(h.req)}</td></tr>`).join('');
+  const sel=(v,l)=>`<option value="${v}"${Number(c.capPct)===v?' selected':''}>${l}</option>`;
+  openModal('📊 Mức dùng giọng Google',`<div class="u-form">
+    <p style="font-size:14px;margin:0 0 8px">Tháng <b>${+mm}/${yy}</b> · ngày ${day}/${dim} · giới hạn an toàn: <b>${capTxt}</b> phần miễn phí ${r.on?'':'· <span style="color:#dc2626">giọng Google đang tắt</span>'}</p>
+    <div style="background:#ecfdf5;border-radius:12px;padding:8px 12px;margin:0 0 10px;font-size:14px">💰 Tiền phải trả tháng này: <b>${c.capPct<=100?'0 đ':'có thể phát sinh nếu vượt phần miễn phí'}</b>${c.capPct<=100?' — app tự dừng trước khi hết phần miễn phí.':''}</div>
+    ${tier('premium','🎙️ Giọng hay (Neural2 / WaveNet)',c.pPremium)}
+    ${tier('standard','🔈 Giọng thường (Standard) — dùng khi giọng hay chạm giới hạn',c.pStandard)}
+    ${trial}
+    <p class="muted" style="font-size:12.5px;margin:0 0 10px">Một câu hỏi ~30–60 ký tự → 1 triệu ký tự ≈ 20.000 lần đọc. Câu đọc lại trong 6 giờ lấy từ bộ nhớ đệm, không tính. Email cảnh báo gửi tới chủ Apps Script khi đạt 50%, 80% và khi chạm giới hạn.</p>
+    <details style="margin:0 0 10px"><summary style="cursor:pointer;font-weight:700">Lịch sử 6 tháng</summary>
+      <table class="ptable" style="width:100%;font-size:13px;margin-top:6px"><tr><th style="text-align:left">Tháng</th><th>Giọng hay</th><th>Giọng thường</th><th>Lượt gọi</th></tr>${hist}</table></details>
+    <details><summary style="cursor:pointer;font-weight:700">⚙️ Cài đặt giới hạn & giá</summary>
+      <label>Giới hạn an toàn<select id="uCap" class="select">${sel(50,'50% phần miễn phí')}${sel(80,'80% phần miễn phí')}${sel(90,'90% phần miễn phí (khuyên dùng)')}${sel(100,'100% phần miễn phí')}${sel(1000,'Không giới hạn (CÓ THỂ MẤT TIỀN)')}</select></label>
+      <label>Tín dụng dùng thử còn (đ)<input id="uCredit" class="input" type="number" min="0" value="${c.trialCredit||''}" placeholder="vd 7754701"></label>
+      <label>Ngày hết hạn dùng thử<input id="uEnd" class="input" type="date" value="${c.trialEnd||''}"></label>
+      <label>Tỷ giá 1 USD (đ)<input id="uUsd" class="input" type="number" value="${c.usd}"></label>
+      <label>Giá giọng hay (USD / 1 triệu ký tự)<input id="uPP" class="input" type="number" step="0.1" value="${c.pPremium}"></label>
+      <label>Giá giọng thường (USD / 1 triệu ký tự)<input id="uPS" class="input" type="number" step="0.1" value="${c.pStandard}"></label>
+      <p class="muted" style="font-size:12px;margin:0 0 8px">Giá & phần miễn phí theo bảng giá Google Cloud Text-to-Speech; Google đổi giá thì sửa ở đây.</p>
+      <div class="form-actions" style="justify-content:flex-start"><button class="btn primary" type="button" onclick="saveUsageCfg()">Lưu cài đặt</button></div></details></div>`)}
+async function saveUsageCfg(){const cap=Number($('uCap').value);
+  if(cap>100&&!confirm('Bỏ giới hạn thì khi dùng quá phần miễn phí Google sẽ TÍNH TIỀN vào thẻ. Vẫn bỏ giới hạn?'))return;
+  busy(true);try{const r=await gas('ttsUsageCfg',{capPct:cap,trialCredit:$('uCredit').value,trialEnd:$('uEnd').value,usd:$('uUsd').value,pPremium:$('uPP').value,pStandard:$('uPS').value});
+    renderUsage(r);toast('Đã lưu ✓');gas('ttsStatus').then(s=>setTtsOn(!!s.on)).catch(()=>{})}catch(e){toast(e.message,true)}finally{busy(false)}}
 function openSettings(){const has=!!VOICE;loadVoice();
   const enOpts=EN_VOICES.slice(0,25).map(v=>`<option value="${esc(v.name)}"${VOICE_EN&&v.name===VOICE_EN.name?' selected':''}>${esc(v.name)} (${esc(v.lang)})</option>`).join('');
   openModal('⚙️ Cài đặt',`<div class="u-form"><label class="chk"><input type="checkbox" id="sAuto" ${SET.auto?'checked':''}> Tự đọc câu hỏi khi sang câu mới</label>
@@ -688,7 +730,8 @@ function openSettings(){const has=!!VOICE;loadVoice();
     ${ME&&ME.role==='Quản trị'?`<div style="border:2px dashed var(--line);border-radius:14px;padding:10px 12px;margin:0 0 12px"><b>🎙️ Giọng Google Cloud (chỉ Quản trị)</b>
       <p class="muted" style="font-size:12.5px;margin:4px 0 8px" id="ttsInfo">Đang kiểm tra…</p>
       <div style="display:flex;gap:8px"><input id="ttsKey" class="input" placeholder="Dán khoá API (AIza…)" autocomplete="off"><button class="btn primary" type="button" onclick="saveTtsKey()">Lưu</button></div>
-      <p class="muted" style="font-size:12px;margin:6px 0 0">Cách lấy khoá: xem mục “Giọng Google Cloud” trong HUONG_DAN.md. Để trống rồi Lưu = tắt.</p></div>`:''}
+      <p class="muted" style="font-size:12px;margin:6px 0 0">Cách lấy khoá: xem mục “Giọng Google Cloud” trong HUONG_DAN.md. Để trống rồi Lưu = tắt.</p>
+      <div class="form-actions" style="justify-content:flex-start;margin:8px 0 0"><button class="btn" type="button" onclick="openUsage()">📊 Mức dùng & chi phí</button></div></div>`:''}
     <label>Tốc độ đọc tiếng Việt<select id="sRate" class="select"><option value="0.7">Chậm</option><option value="0.85">Vừa</option><option value="1">Nhanh</option></select></label>
     <p class="muted" style="font-size:13px;margin:0 0 8px">${has?'Giọng tiếng Việt: '+esc(VOICE.name):'⚠️ Máy này chưa có giọng đọc tiếng Việt. iPhone: Cài đặt › Trợ năng › Nội dung được đọc › Giọng nói › Tiếng Việt. Android: cài “Dịch vụ chuyển văn bản thành giọng nói của Google” và tải tiếng Việt.'}${IN_ZALO?'<br>📱 Đang mở trong Zalo – nên bấm ⋯ › Mở bằng Safari / Chrome để đọc to ổn định hơn.':''}</p>
     <div class="form-actions" style="justify-content:flex-start;margin:0 0 12px"><button class="btn" type="button" onclick="speak('Xin chào bé! Mình cùng học nhé.',null,m=>{$('spkStat').textContent=m})">🔊 Nghe thử tiếng Việt</button></div>
