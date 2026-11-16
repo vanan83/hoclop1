@@ -1,18 +1,93 @@
 /* Bé vui học lớp 1 — giao diện (chạy trên GitHub Pages, gọi máy chủ Apps Script qua API).
  * Tác giả: Phạm Văn An · 0848.355.888 */
-const APP_VERSION='2026.11.11-9'; // = ngày cập nhật; nhớ đổi CACHE trong sw.js cho trùng
+const APP_VERSION='2026.11.16-1'; // = ngày cập nhật; nhớ đổi CACHE trong sw.js cho trùng
 const $=id=>document.getElementById(id);
 let TOKEN='',ME=null,BANK={words:[],sentences:[]},STATS={stars:0,sessions:0,days:{},topics:{},recent:[]};
 let SUB='toan',QZ=null,PSUB='toan';
 const SET=Object.assign({auto:true,sound:true,rate:0.85,rateEn:0.8,enVoice:'',cloud:true},JSON.parse(ls('hl1_set')||'{}'));
 
 /* ================= tiện ích ================= */
+/* ===== PVA busy kit — báo "đang chờ máy chủ" cho đỡ sốt ruột (dùng chung cho các app) =====
+   pvaBusy()      -> bắt đầu chờ, trả về hàm stop() gọi khi xong.
+   pvaWrap(p)     -> bọc một Promise: tự bắt đầu / kết thúc.
+   Hiển thị: thanh chạy trên đầu trang (tới ~92%, xong chạy hết 100%), vòng quay trên nút vừa bấm
+   (tạm khóa nút), chờ quá 0,8 giây thì hiện ô "Đang xử lý… N giây" ở dưới màn hình. */
+(function () {
+  if (window.pvaBusy) return;
+  var CSS = '#pvaBar{position:fixed;top:0;left:0;height:4px;width:0;z-index:2147483000;opacity:0;pointer-events:none;'
+    + 'transition:width .35s ease;background:linear-gradient(90deg,#f5a524,#ffd27a,#1767d8,#f5a524);background-size:200% 100%;'
+    + 'box-shadow:0 0 10px rgba(245,165,36,.6);border-radius:0 3px 3px 0}'
+    + '#pvaBar.on{opacity:1;animation:pvaShine 1.2s linear infinite}'
+    + '#pvaBar.done{transition:width .25s ease,opacity .3s ease .25s;opacity:0}'
+    + '@keyframes pvaShine{from{background-position:0 0}to{background-position:-200% 0}}'
+    + '#pvaPill{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);z-index:2147483000;opacity:0;pointer-events:none;'
+    + 'display:flex;align-items:center;gap:10px;padding:10px 18px;border-radius:999px;background:rgba(12,40,80,.92);color:#fff;'
+    + 'font:600 13.5px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;box-shadow:0 10px 30px rgba(5,18,40,.35);'
+    + 'transition:opacity .2s,transform .2s;max-width:92vw}'
+    + '#pvaPill.on{opacity:1;transform:translate(-50%,0)}'
+    + '#pvaPill i{width:16px;height:16px;border-radius:50%;border:2.5px solid rgba(255,255,255,.3);border-top-color:#ffc64a;'
+    + 'animation:pvaSpin .8s linear infinite;flex:none}'
+    + '@keyframes pvaSpin{to{transform:rotate(360deg)}}'
+    + '.pva-loading{pointer-events:none!important;cursor:progress!important}'
+    + '.pva-loading::before{content:"";display:inline-block;vertical-align:-3px;width:13px;height:13px;margin-right:7px;'
+    + 'border-radius:50%;border:2.5px solid currentColor;border-right-color:transparent;opacity:.85;animation:pvaSpin .7s linear infinite}'
+    + 'body.pva-busy{cursor:progress}';
+  var n = 0, t0 = 0, grow = null, pillT = null, tick = null, bar, pill, txt;
+  function ui() {
+    if (bar) return true;
+    if (!document.body) return false;
+    var st = document.createElement('style'); st.textContent = CSS; (document.head || document.body).appendChild(st);
+    bar = document.createElement('div'); bar.id = 'pvaBar'; document.body.appendChild(bar);
+    pill = document.createElement('div'); pill.id = 'pvaPill'; pill.innerHTML = '<i></i><span>Đang xử lý…</span>';
+    document.body.appendChild(pill); txt = pill.lastChild;
+    return true;
+  }
+  window.pvaBusy = function () {
+    if (!ui()) return function () {};
+    var btn = document.activeElement;
+    if (!(btn && (btn.tagName === 'BUTTON' || /(^|\s)(btn|button)(\s|$)/.test(btn.className || '')) && !btn.disabled)) btn = null;
+    if (btn) { btn.classList.add('pva-loading'); btn.disabled = true; }
+    if (n++ === 0) {
+      t0 = Date.now();
+      bar.classList.remove('done'); bar.style.width = '0'; void bar.offsetWidth; bar.classList.add('on');
+      var w = 8; bar.style.width = w + '%';
+      clearInterval(grow); grow = setInterval(function () { w += (92 - w) * 0.07; bar.style.width = w.toFixed(1) + '%'; }, 300);
+      document.body.classList.add('pva-busy');
+      pillT = setTimeout(function () {
+        var upd = function () {
+          var s = Math.round((Date.now() - t0) / 1000);
+          txt.textContent = 'Đang xử lý…' + (s >= 2 ? ' ' + s + ' giây' : '') + (s >= 15 ? ' (máy chủ đang làm việc nặng, vui lòng đợi)' : '');
+        };
+        upd(); pill.classList.add('on'); tick = setInterval(upd, 1000);
+      }, 800);
+    }
+    var stopped = false;
+    return function () {
+      if (stopped) return; stopped = true;
+      if (btn) { btn.classList.remove('pva-loading'); btn.disabled = false; }
+      if (--n > 0) return;
+      n = 0; clearTimeout(pillT); clearInterval(tick); clearInterval(grow);
+      pill.classList.remove('on'); document.body.classList.remove('pva-busy');
+      bar.style.width = '100%'; bar.classList.add('done');
+      setTimeout(function () { if (!n) { bar.classList.remove('on', 'done'); bar.style.width = '0'; } }, 600);
+    };
+  };
+  window.pvaWrap = function (p) {
+    var stop = window.pvaBusy();
+    return Promise.resolve(p).then(function (r) { stop(); return r; }, function (e) { stop(); throw e; });
+  };
+})();
+/* ===== hết PVA busy kit ===== */
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
 function esc(s){return String(s==null?'':s).replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]))}
-function busy(v){$('loading').classList.toggle('hidden',!v)}
+/* busy(true/false): dùng thanh chạy + ô "Đang xử lý… N giây" chung thay cho lớp phủ cũ */
+function busy(v){if(v){if(!busy._s)busy._s=pvaBusy()}else if(busy._s){busy._s();busy._s=null}}
 function toast(msg,err){const t=$('toast');t.textContent=msg;t.className='toast show'+(err?' error':'');clearTimeout(toast._t);toast._t=setTimeout(()=>t.className='toast',2800)}
 /* Gọi máy chủ Apps Script (API JSON). POST dạng text/plain nên không phát sinh yêu cầu "preflight" CORS. */
-async function callApi(fn,args,token){let res;
+/* Gọi ngầm (đọc giọng, lưu kết quả) thì không hiện báo chờ */
+const QUIET_FN={tts:1,saveResult:1};
+function callApi(fn,args,token){return QUIET_FN[fn]?callApi0(fn,args,token):pvaWrap(callApi0(fn,args,token))}
+async function callApi0(fn,args,token){let res;
   try{res=await fetch(APP_URL,{method:'POST',body:JSON.stringify({fn,args,token:token||''})})}
   catch(e){throw new Error(navigator.onLine===false?'Đang mất mạng, có mạng lại thử nhé.':'Chưa kết nối được máy chủ, thử lại sau nhé.')}
   let j;try{j=await res.json()}catch(e){throw new Error('Máy chủ trả về dữ liệu lạ. Kiểm tra link Web App (APP_URL trong config.js) và quyền "Bất kỳ ai".')}
